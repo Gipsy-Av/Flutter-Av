@@ -23,18 +23,20 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// Model kelas Task diperbarui dengan atribut category (Kategori)
+// Model kelas Task diperbarui dengan atribut dueDate (Tanggal Jatuh Tempo)
 class Task {
   String title;
   bool isDone;
   String priority;
-  String category; // Update V8: Kategori tugas (Kuliah, Pribadi, Kerja, dll)
+  String category;
+  String dueDate; // Update V9: Tanggal jatuh tempo
 
   Task({
     required this.title,
     this.isDone = false,
     this.priority = 'Normal',
     this.category = 'Pribadi',
+    this.dueDate = '-',
   });
 
   Map<String, dynamic> toJson() => {
@@ -42,6 +44,7 @@ class Task {
         'isDone': isDone,
         'priority': priority,
         'category': category,
+        'dueDate': dueDate,
       };
 
   factory Task.fromJson(Map<String, dynamic> json) => Task(
@@ -49,6 +52,7 @@ class Task {
         isDone: json['isDone'],
         priority: json['priority'] ?? 'Normal',
         category: json['category'] ?? 'Pribadi',
+        dueDate: json['dueDate'] ?? '-',
       );
 }
 
@@ -68,9 +72,11 @@ class _TodoHomePageState extends State<TodoHomePage> {
   String _selectedPriority = 'Normal';
   final List<String> _priorities = ['Penting', 'Normal', 'Santai'];
   
-  // Variabel Kategori (Update V8)
   String _selectedCategory = 'Pribadi';
   final List<String> _categories = ['Pribadi', 'Kuliah', 'Kerja', 'Belanja'];
+
+  // Variabel untuk tanggal jatuh tempo (Update V9)
+  DateTime? _selectedDate;
 
   String _currentFilter = 'Semua';
 
@@ -96,17 +102,39 @@ class _TodoHomePageState extends State<TodoHomePage> {
     }
   }
 
+  // Fungsi memunculkan kalender pilihan tanggal (Update V9)
+  Future<void> _pickDueDate(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime.now(),
+      lastDate: DateTime(2100),
+    );
+    if (picked != null) {
+      setState(() {
+        _selectedDate = picked;
+      });
+    }
+  }
+
   void _addTodo() {
     if (_controller.text.isNotEmpty) {
+      // Format tanggal menjadi string (contoh: 15/11/2026)
+      String formattedDate = _selectedDate != null
+          ? "${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}"
+          : "Tanpa Deadline";
+
       setState(() {
         _todos.add(Task(
           title: _controller.text,
           priority: _selectedPriority,
           category: _selectedCategory,
+          dueDate: formattedDate,
         ));
         _controller.clear();
         _selectedPriority = 'Normal';
         _selectedCategory = 'Pribadi';
+        _selectedDate = null; // Reset tanggal
       });
       _saveTasks();
     }
@@ -160,7 +188,6 @@ class _TodoHomePageState extends State<TodoHomePage> {
     }
   }
 
-  // Fungsi ikon & warna kategori (Update V8)
   IconData _getCategoryIcon(String category) {
     switch (category) {
       case 'Kuliah':
@@ -192,7 +219,7 @@ class _TodoHomePageState extends State<TodoHomePage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Aplikasi Catatanku (Update V8)'),
+        title: const Text('Aplikasi Catatanku (Update V9)'),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
       ),
@@ -212,7 +239,7 @@ class _TodoHomePageState extends State<TodoHomePage> {
             ),
           ),
 
-          // Form Input Tugas, Prioritas, & Kategori (Update V8)
+          // Form Input Lengkap (Update V9 dengan Tanggal)
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
@@ -228,13 +255,14 @@ class _TodoHomePageState extends State<TodoHomePage> {
                 Row(
                   children: [
                     // Pilihan Prioritas
-                    const Text('Prioritas: ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                    const Text('Prioritas:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                    const SizedBox(width: 4),
                     DropdownButton<String>(
                       value: _selectedPriority,
                       items: _priorities.map((String priority) {
                         return DropdownMenuItem<String>(
                           value: priority,
-                          child: Text(priority, style: const TextStyle(fontSize: 13)),
+                          child: Text(priority, style: const TextStyle(fontSize: 12)),
                         );
                       }).toList(),
                       onChanged: (String? newValue) {
@@ -245,15 +273,16 @@ class _TodoHomePageState extends State<TodoHomePage> {
                         }
                       },
                     ),
-                    const SizedBox(width: 10),
-                    // Pilihan Kategori (Update V8)
-                    const Text('Kategori: ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                    const SizedBox(width: 8),
+                    // Pilihan Kategori
+                    const Text('Kat:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                    const SizedBox(width: 4),
                     DropdownButton<String>(
                       value: _selectedCategory,
                       items: _categories.map((String category) {
                         return DropdownMenuItem<String>(
                           value: category,
-                          child: Text(category, style: const TextStyle(fontSize: 13)),
+                          child: Text(category, style: const TextStyle(fontSize: 12)),
                         );
                       }).toList(),
                       onChanged: (String? newValue) {
@@ -267,13 +296,26 @@ class _TodoHomePageState extends State<TodoHomePage> {
                   ],
                 ),
                 const SizedBox(height: 5),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: _addTodo,
-                    icon: const Icon(Icons.add),
-                    label: const Text('Tambah Tugas'),
-                  ),
+                // Tombol Pilih Tanggal & Tombol Tambah
+                Row(
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: () => _pickDueDate(context),
+                      icon: const Icon(Icons.calendar_today, size: 16),
+                      label: Text(
+                        _selectedDate == null
+                            ? 'Pilih Deadline'
+                            : "${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}",
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ),
+                    const Spacer(),
+                    ElevatedButton.icon(
+                      onPressed: _addTodo,
+                      icon: const Icon(Icons.add),
+                      label: const Text('Tambah'),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -358,36 +400,48 @@ class _TodoHomePageState extends State<TodoHomePage> {
                               color: task.isDone ? Colors.grey : Colors.black,
                             ),
                           ),
-                          // Menampilkan Badge Kategori & Prioritas (Update V8)
-                          subtitle: Row(
+                          // Subtitle menampilkan Kategori, Prioritas, & Tanggal Deadline (Update V9)
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // Badge Kategori
+                              const SizedBox(height: 4),
                               Row(
                                 children: [
                                   Icon(_getCategoryIcon(task.category), size: 14, color: Colors.grey.shade700),
                                   const SizedBox(width: 4),
                                   Text(task.category, style: const TextStyle(fontSize: 12, color: Colors.black87)),
+                                  const SizedBox(width: 12),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: _getPriorityColor(task.priority).withOpacity(0.2),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      task.priority,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: _getPriorityColor(task.priority),
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
                                 ],
                               ),
-                              const SizedBox(width: 12),
-                              // Badge Prioritas
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: _getPriorityColor(task.priority).withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(
-                                  task.priority,
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: _getPriorityColor(task.priority),
-                                    fontWeight: FontWeight.bold,
+                              const SizedBox(height: 2),
+                              Row(
+                                children: [
+                                  const Icon(Icons.schedule, size: 13, color: Colors.grey),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Deadline: ${task.dueDate}',
+                                    style: const TextStyle(fontSize: 11, color: Colors.grey),
                                   ),
-                                ),
+                                ],
                               ),
                             ],
                           ),
+                          isThreeLine: true,
                           trailing: IconButton(
                             icon: const Icon(Icons.delete, color: Colors.red),
                             onPressed: () => _confirmDelete(task),
