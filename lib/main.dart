@@ -45,10 +45,12 @@ class _TodoHomePageState extends State<TodoHomePage> {
   final List<Task> _todos = [];
   final TextEditingController _controller = TextEditingController();
   
+  // Controller dan variabel baru untuk fitur pencarian (Search V6)
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
   String _selectedPriority = 'Normal';
   final List<String> _priorities = ['Penting', 'Normal', 'Santai'];
-
-  // Variabel untuk menyimpan status filter yang sedang aktif ('Semua', 'Belum', 'Selesai')
   String _currentFilter = 'Semua';
 
   // Fungsi Tambah Tugas
@@ -99,16 +101,22 @@ class _TodoHomePageState extends State<TodoHomePage> {
     int completedTask = _todos.where((task) => task.isDone).length;
     int pendingTask = totalTask - completedTask;
 
-    // Logika Filter Tugas berdasarkan tab yang dipilih
+    // Logika Filter (Tab Status + Pencarian Teks)
     List<Task> filteredTasks = _todos.where((task) {
-      if (_currentFilter == 'Belum') return !task.isDone;
-      if (_currentFilter == 'Selesai') return task.isDone;
-      return true; // 'Semua'
+      // 1. Filter berdasarkan status tab (Semua/Belum/Selesai)
+      bool matchesStatus = true;
+      if (_currentFilter == 'Belum') matchesStatus = !task.isDone;
+      if (_currentFilter == 'Selesai') matchesStatus = task.isDone;
+
+      // 2. Filter berdasarkan kata kunci pencarian (Search Query)
+      bool matchesSearch = task.title.toLowerCase().contains(_searchQuery.toLowerCase());
+
+      return matchesStatus && matchesSearch;
     }).toList();
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Aplikasi Catatanku (Update V5)'),
+        title: const Text('Aplikasi Catatanku (Update V6)'),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
       ),
@@ -173,7 +181,37 @@ class _TodoHomePageState extends State<TodoHomePage> {
             ),
           ),
 
-          // Tombol Filter Tampilan (Update V5)
+          // Kotak Pencarian Tugas (Search Bar - Update V6)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                labelText: 'Cari tugas...',
+                prefixIcon: const Icon(Icons.search),
+                border: const OutlineInputBorder(),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          setState(() {
+                            _searchController.clear();
+                            _searchQuery = '';
+                          });
+                        },
+                      )
+                    : null,
+              ),
+              onChanged: (value) {
+                setState(() {
+                  _searchQuery = value;
+                });
+              },
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // Tombol Filter Tampilan (ChoiceChip)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: Row(
@@ -189,12 +227,12 @@ class _TodoHomePageState extends State<TodoHomePage> {
           ),
           const SizedBox(height: 8),
           
-          // Daftar Tugas yang sudah difilter
+          // Daftar Tugas yang sudah difilter & dicari
           Expanded(
             child: filteredTasks.isEmpty
                 ? const Center(
                     child: Text(
-                      'Tidak ada tugas pada kategori ini.',
+                      'Tidak ada tugas yang ditemukan.',
                       style: TextStyle(color: Colors.grey),
                     ),
                   )
@@ -209,7 +247,6 @@ class _TodoHomePageState extends State<TodoHomePage> {
                           leading: Checkbox(
                             value: task.isDone,
                             onChanged: (bool? value) {
-                              // Cari indeks asli tugas di dalam list utama _todos
                               int originalIndex = _todos.indexOf(task);
                               _toggleTodoStatus(originalIndex);
                             },
@@ -257,7 +294,6 @@ class _TodoHomePageState extends State<TodoHomePage> {
     );
   }
 
-  // Widget pendukung untuk tombol filter
   Widget _buildFilterButton(String filterName) {
     bool isSelected = _currentFilter == filterName;
     return ChoiceChip(
