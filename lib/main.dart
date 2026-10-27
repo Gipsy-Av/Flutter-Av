@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   runApp(const MyApp());
@@ -21,7 +23,7 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// Model kelas Task
+// Model kelas Task yang diperbarui agar bisa diubah ke format JSON (untuk disimpan)
 class Task {
   String title;
   bool isDone;
@@ -32,6 +34,20 @@ class Task {
     this.isDone = false,
     this.priority = 'Normal',
   });
+
+  // Mengubah objek Task menjadi Map (JSON)
+  Map<String, dynamic> toJson() => {
+        'title': title,
+        'isDone': isDone,
+        'priority': priority,
+      };
+
+  // Membuat objek Task dari Map (JSON)
+  factory Task.fromJson(Map<String, dynamic> json) => Task(
+        title: json['title'],
+        isDone: json['isDone'],
+        priority: json['priority'],
+      );
 }
 
 class TodoHomePage extends StatefulWidget {
@@ -42,18 +58,43 @@ class TodoHomePage extends StatefulWidget {
 }
 
 class _TodoHomePageState extends State<TodoHomePage> {
-  final List<Task> _todos = [];
+  List<Task> _todos = [];
   final TextEditingController _controller = TextEditingController();
-  
-  // Controller dan variabel baru untuk fitur pencarian (Search V6)
   final TextEditingController _searchController = TextEditingController();
+  
   String _searchQuery = '';
-
   String _selectedPriority = 'Normal';
   final List<String> _priorities = ['Penting', 'Normal', 'Santai'];
   String _currentFilter = 'Semua';
 
-  // Fungsi Tambah Tugas
+  @override
+  void initState() {
+    super.initState();
+    _loadTasks(); // Muat data tersimpan saat aplikasi pertama kali dibuka
+  }
+
+  // --- FITUR PENYIMPANAN LOKAL (SharedPreferences) ---
+  
+  // Simpan daftar tugas ke memori HP
+  Future<void> _saveTasks() async {
+    final prefs = await SharedPreferences.getInstance();
+    List<String> taskListString = _todos.map((task) => jsonEncode(task.toJson())).toList();
+    await prefs.setStringList('saved_tasks', taskListString);
+  }
+
+  // Ambil daftar tugas dari memori HP
+  Future<void> _loadTasks() async {
+    final prefs = await SharedPreferences.getInstance();
+    List<String>? taskListString = prefs.getStringList('saved_tasks');
+    if (taskListString != null) {
+      setState(() {
+        _todos = taskListString.map((item) => Task.fromJson(jsonDecode(item))).toList();
+      });
+    }
+  }
+
+  // --- AKSI DATA ---
+
   void _addTodo() {
     if (_controller.text.isNotEmpty) {
       setState(() {
@@ -64,24 +105,46 @@ class _TodoHomePageState extends State<TodoHomePage> {
         _controller.clear();
         _selectedPriority = 'Normal';
       });
+      _saveTasks(); // Simpan perubahan
     }
   }
 
-  // Fungsi Ubah Status Selesai / Belum
   void _toggleTodoStatus(int index) {
     setState(() {
       _todos[index].isDone = !_todos[index].isDone;
     });
+    _saveTasks(); // Simpan perubahan
   }
 
-  // Fungsi Hapus Tugas
-  void _removeTodo(Task task) {
-    setState(() {
-      _todos.remove(task);
-    });
+  // Dialog Konfirmasi Hapus (Update V7)
+  void _confirmDelete(Task task) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Hapus Tugas'),
+          content: Text('Yakin ingin menghapus "${task.title}"?'),
+          actions: [
+            TextButton(
+              child: const Text('Batal'),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            TextButton(
+              child: const Text('Hapus', style: TextStyle(color: Colors.red)),
+              onPressed: () {
+                setState(() {
+                  _todos.remove(task);
+                });
+                _saveTasks(); // Simpan perubahan
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
   }
 
-  // Fungsi menentukan warna prioritas
   Color _getPriorityColor(String priority) {
     switch (priority) {
       case 'Penting':
@@ -101,14 +164,11 @@ class _TodoHomePageState extends State<TodoHomePage> {
     int completedTask = _todos.where((task) => task.isDone).length;
     int pendingTask = totalTask - completedTask;
 
-    // Logika Filter (Tab Status + Pencarian Teks)
     List<Task> filteredTasks = _todos.where((task) {
-      // 1. Filter berdasarkan status tab (Semua/Belum/Selesai)
       bool matchesStatus = true;
       if (_currentFilter == 'Belum') matchesStatus = !task.isDone;
       if (_currentFilter == 'Selesai') matchesStatus = task.isDone;
 
-      // 2. Filter berdasarkan kata kunci pencarian (Search Query)
       bool matchesSearch = task.title.toLowerCase().contains(_searchQuery.toLowerCase());
 
       return matchesStatus && matchesSearch;
@@ -116,7 +176,7 @@ class _TodoHomePageState extends State<TodoHomePage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Aplikasi Catatanku (Update V6)'),
+        title: const Text('Aplikasi Catatanku (Update V7)'),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
       ),
@@ -181,7 +241,7 @@ class _TodoHomePageState extends State<TodoHomePage> {
             ),
           ),
 
-          // Kotak Pencarian Tugas (Search Bar - Update V6)
+          // Kotak Pencarian
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: TextField(
@@ -211,7 +271,7 @@ class _TodoHomePageState extends State<TodoHomePage> {
           ),
           const SizedBox(height: 10),
 
-          // Tombol Filter Tampilan (ChoiceChip)
+          // Tombol Filter Tampilan
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: Row(
@@ -227,7 +287,7 @@ class _TodoHomePageState extends State<TodoHomePage> {
           ),
           const SizedBox(height: 8),
           
-          // Daftar Tugas yang sudah difilter & dicari
+          // Daftar Tugas
           Expanded(
             child: filteredTasks.isEmpty
                 ? const Center(
@@ -280,9 +340,10 @@ class _TodoHomePageState extends State<TodoHomePage> {
                               ),
                             ],
                           ),
+                          // Tombol Hapus memicu AlertDialog konfirmasi
                           trailing: IconButton(
                             icon: const Icon(Icons.delete, color: Colors.red),
-                            onPressed: () => _removeTodo(task),
+                            onPressed: () => _confirmDelete(task),
                           ),
                         ),
                       );
