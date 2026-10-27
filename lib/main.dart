@@ -23,30 +23,32 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// Model kelas Task yang diperbarui agar bisa diubah ke format JSON (untuk disimpan)
+// Model kelas Task diperbarui dengan atribut category (Kategori)
 class Task {
   String title;
   bool isDone;
   String priority;
+  String category; // Update V8: Kategori tugas (Kuliah, Pribadi, Kerja, dll)
 
   Task({
     required this.title,
     this.isDone = false,
     this.priority = 'Normal',
+    this.category = 'Pribadi',
   });
 
-  // Mengubah objek Task menjadi Map (JSON)
   Map<String, dynamic> toJson() => {
         'title': title,
         'isDone': isDone,
         'priority': priority,
+        'category': category,
       };
 
-  // Membuat objek Task dari Map (JSON)
   factory Task.fromJson(Map<String, dynamic> json) => Task(
         title: json['title'],
         isDone: json['isDone'],
-        priority: json['priority'],
+        priority: json['priority'] ?? 'Normal',
+        category: json['category'] ?? 'Pribadi',
       );
 }
 
@@ -65,24 +67,25 @@ class _TodoHomePageState extends State<TodoHomePage> {
   String _searchQuery = '';
   String _selectedPriority = 'Normal';
   final List<String> _priorities = ['Penting', 'Normal', 'Santai'];
+  
+  // Variabel Kategori (Update V8)
+  String _selectedCategory = 'Pribadi';
+  final List<String> _categories = ['Pribadi', 'Kuliah', 'Kerja', 'Belanja'];
+
   String _currentFilter = 'Semua';
 
   @override
   void initState() {
     super.initState();
-    _loadTasks(); // Muat data tersimpan saat aplikasi pertama kali dibuka
+    _loadTasks();
   }
 
-  // --- FITUR PENYIMPANAN LOKAL (SharedPreferences) ---
-  
-  // Simpan daftar tugas ke memori HP
   Future<void> _saveTasks() async {
     final prefs = await SharedPreferences.getInstance();
     List<String> taskListString = _todos.map((task) => jsonEncode(task.toJson())).toList();
     await prefs.setStringList('saved_tasks', taskListString);
   }
 
-  // Ambil daftar tugas dari memori HP
   Future<void> _loadTasks() async {
     final prefs = await SharedPreferences.getInstance();
     List<String>? taskListString = prefs.getStringList('saved_tasks');
@@ -93,19 +96,19 @@ class _TodoHomePageState extends State<TodoHomePage> {
     }
   }
 
-  // --- AKSI DATA ---
-
   void _addTodo() {
     if (_controller.text.isNotEmpty) {
       setState(() {
         _todos.add(Task(
           title: _controller.text,
           priority: _selectedPriority,
+          category: _selectedCategory,
         ));
         _controller.clear();
         _selectedPriority = 'Normal';
+        _selectedCategory = 'Pribadi';
       });
-      _saveTasks(); // Simpan perubahan
+      _saveTasks();
     }
   }
 
@@ -113,10 +116,9 @@ class _TodoHomePageState extends State<TodoHomePage> {
     setState(() {
       _todos[index].isDone = !_todos[index].isDone;
     });
-    _saveTasks(); // Simpan perubahan
+    _saveTasks();
   }
 
-  // Dialog Konfirmasi Hapus (Update V7)
   void _confirmDelete(Task task) {
     showDialog(
       context: context,
@@ -135,7 +137,7 @@ class _TodoHomePageState extends State<TodoHomePage> {
                 setState(() {
                   _todos.remove(task);
                 });
-                _saveTasks(); // Simpan perubahan
+                _saveTasks();
                 Navigator.of(context).pop();
               },
             ),
@@ -158,6 +160,20 @@ class _TodoHomePageState extends State<TodoHomePage> {
     }
   }
 
+  // Fungsi ikon & warna kategori (Update V8)
+  IconData _getCategoryIcon(String category) {
+    switch (category) {
+      case 'Kuliah':
+        return Icons.school;
+      case 'Kerja':
+        return Icons.work;
+      case 'Belanja':
+        return Icons.shopping_cart;
+      default:
+        return Icons.person;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     int totalTask = _todos.length;
@@ -176,7 +192,7 @@ class _TodoHomePageState extends State<TodoHomePage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Aplikasi Catatanku (Update V7)'),
+        title: const Text('Aplikasi Catatanku (Update V8)'),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
       ),
@@ -196,7 +212,7 @@ class _TodoHomePageState extends State<TodoHomePage> {
             ),
           ),
 
-          // Form Input Tugas & Prioritas
+          // Form Input Tugas, Prioritas, & Kategori (Update V8)
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
@@ -211,14 +227,14 @@ class _TodoHomePageState extends State<TodoHomePage> {
                 const SizedBox(height: 10),
                 Row(
                   children: [
-                    const Text('Prioritas: ', style: TextStyle(fontWeight: FontWeight.bold)),
-                    const SizedBox(width: 10),
+                    // Pilihan Prioritas
+                    const Text('Prioritas: ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                     DropdownButton<String>(
                       value: _selectedPriority,
                       items: _priorities.map((String priority) {
                         return DropdownMenuItem<String>(
                           value: priority,
-                          child: Text(priority),
+                          child: Text(priority, style: const TextStyle(fontSize: 13)),
                         );
                       }).toList(),
                       onChanged: (String? newValue) {
@@ -229,13 +245,35 @@ class _TodoHomePageState extends State<TodoHomePage> {
                         }
                       },
                     ),
-                    const Spacer(),
-                    ElevatedButton.icon(
-                      onPressed: _addTodo,
-                      icon: const Icon(Icons.add),
-                      label: const Text('Tambah'),
+                    const SizedBox(width: 10),
+                    // Pilihan Kategori (Update V8)
+                    const Text('Kategori: ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                    DropdownButton<String>(
+                      value: _selectedCategory,
+                      items: _categories.map((String category) {
+                        return DropdownMenuItem<String>(
+                          value: category,
+                          child: Text(category, style: const TextStyle(fontSize: 13)),
+                        );
+                      }).toList(),
+                      onChanged: (String? newValue) {
+                        if (newValue != null) {
+                          setState(() {
+                            _selectedCategory = newValue;
+                          });
+                        }
+                      },
                     ),
                   ],
+                ),
+                const SizedBox(height: 5),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: _addTodo,
+                    icon: const Icon(Icons.add),
+                    label: const Text('Tambah Tugas'),
+                  ),
                 ),
               ],
             ),
@@ -320,11 +358,21 @@ class _TodoHomePageState extends State<TodoHomePage> {
                               color: task.isDone ? Colors.grey : Colors.black,
                             ),
                           ),
+                          // Menampilkan Badge Kategori & Prioritas (Update V8)
                           subtitle: Row(
                             children: [
+                              // Badge Kategori
+                              Row(
+                                children: [
+                                  Icon(_getCategoryIcon(task.category), size: 14, color: Colors.grey.shade700),
+                                  const SizedBox(width: 4),
+                                  Text(task.category, style: const TextStyle(fontSize: 12, color: Colors.black87)),
+                                ],
+                              ),
+                              const SizedBox(width: 12),
+                              // Badge Prioritas
                               Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 2),
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                 decoration: BoxDecoration(
                                   color: _getPriorityColor(task.priority).withOpacity(0.2),
                                   borderRadius: BorderRadius.circular(4),
@@ -332,7 +380,7 @@ class _TodoHomePageState extends State<TodoHomePage> {
                                 child: Text(
                                   task.priority,
                                   style: TextStyle(
-                                    fontSize: 12,
+                                    fontSize: 11,
                                     color: _getPriorityColor(task.priority),
                                     fontWeight: FontWeight.bold,
                                   ),
@@ -340,7 +388,6 @@ class _TodoHomePageState extends State<TodoHomePage> {
                               ),
                             ],
                           ),
-                          // Tombol Hapus memicu AlertDialog konfirmasi
                           trailing: IconButton(
                             icon: const Icon(Icons.delete, color: Colors.red),
                             onPressed: () => _confirmDelete(task),
