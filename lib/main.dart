@@ -21,11 +21,11 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// Model kelas diperbarui dengan atribut priority (Prioritas)
+// Model kelas Task
 class Task {
   String title;
   bool isDone;
-  String priority; // 'Penting', 'Normal', atau 'Santai'
+  String priority;
 
   Task({
     required this.title,
@@ -45,11 +45,13 @@ class _TodoHomePageState extends State<TodoHomePage> {
   final List<Task> _todos = [];
   final TextEditingController _controller = TextEditingController();
   
-  // Variabel untuk menyimpan pilihan prioritas saat membuat tugas baru
   String _selectedPriority = 'Normal';
   final List<String> _priorities = ['Penting', 'Normal', 'Santai'];
 
-  // Fungsi Tambah Tugas dengan Prioritas
+  // Variabel untuk menyimpan status filter yang sedang aktif ('Semua', 'Belum', 'Selesai')
+  String _currentFilter = 'Semua';
+
+  // Fungsi Tambah Tugas
   void _addTodo() {
     if (_controller.text.isNotEmpty) {
       setState(() {
@@ -58,7 +60,7 @@ class _TodoHomePageState extends State<TodoHomePage> {
           priority: _selectedPriority,
         ));
         _controller.clear();
-        _selectedPriority = 'Normal'; // Reset ke default
+        _selectedPriority = 'Normal';
       });
     }
   }
@@ -71,13 +73,13 @@ class _TodoHomePageState extends State<TodoHomePage> {
   }
 
   // Fungsi Hapus Tugas
-  void _removeTodo(int index) {
+  void _removeTodo(Task task) {
     setState(() {
-      _todos.removeAt(index);
+      _todos.remove(task);
     });
   }
 
-  // Fungsi untuk menentukan warna berdasarkan prioritas
+  // Fungsi menentukan warna prioritas
   Color _getPriorityColor(String priority) {
     switch (priority) {
       case 'Penting':
@@ -97,15 +99,22 @@ class _TodoHomePageState extends State<TodoHomePage> {
     int completedTask = _todos.where((task) => task.isDone).length;
     int pendingTask = totalTask - completedTask;
 
+    // Logika Filter Tugas berdasarkan tab yang dipilih
+    List<Task> filteredTasks = _todos.where((task) {
+      if (_currentFilter == 'Belum') return !task.isDone;
+      if (_currentFilter == 'Selesai') return task.isDone;
+      return true; // 'Semua'
+    }).toList();
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Aplikasi Catatanku (Update V4)'),
+        title: const Text('Aplikasi Catatanku (Update V5)'),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
       ),
       body: Column(
         children: [
-          // Widget Ringkasan Statistik Tugas
+          // Widget Statistik
           Container(
             padding: const EdgeInsets.all(16.0),
             color: Colors.blue.shade50,
@@ -119,7 +128,7 @@ class _TodoHomePageState extends State<TodoHomePage> {
             ),
           ),
 
-          // Form Input Teks, Pilihan Prioritas, & Tombol (Update V4)
+          // Form Input Tugas & Prioritas
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
@@ -136,7 +145,6 @@ class _TodoHomePageState extends State<TodoHomePage> {
                   children: [
                     const Text('Prioritas: ', style: TextStyle(fontWeight: FontWeight.bold)),
                     const SizedBox(width: 10),
-                    // Dropdown untuk memilih prioritas
                     DropdownButton<String>(
                       value: _selectedPriority,
                       items: _priorities.map((String priority) {
@@ -164,20 +172,36 @@ class _TodoHomePageState extends State<TodoHomePage> {
               ],
             ),
           ),
+
+          // Tombol Filter Tampilan (Update V5)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _buildFilterButton('Semua'),
+                const SizedBox(width: 8),
+                _buildFilterButton('Belum'),
+                const SizedBox(width: 8),
+                _buildFilterButton('Selesai'),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
           
-          // Daftar Tugas dengan Indikator Warna Prioritas
+          // Daftar Tugas yang sudah difilter
           Expanded(
-            child: _todos.isEmpty
+            child: filteredTasks.isEmpty
                 ? const Center(
                     child: Text(
-                      'Belum ada tugas. Yuk, tambahkan!',
+                      'Tidak ada tugas pada kategori ini.',
                       style: TextStyle(color: Colors.grey),
                     ),
                   )
                 : ListView.builder(
-                    itemCount: _todos.length,
+                    itemCount: filteredTasks.length,
                     itemBuilder: (context, index) {
-                      final task = _todos[index];
+                      final task = filteredTasks[index];
                       return Card(
                         margin: const EdgeInsets.symmetric(
                             horizontal: 16, vertical: 4),
@@ -185,7 +209,9 @@ class _TodoHomePageState extends State<TodoHomePage> {
                           leading: Checkbox(
                             value: task.isDone,
                             onChanged: (bool? value) {
-                              _toggleTodoStatus(index);
+                              // Cari indeks asli tugas di dalam list utama _todos
+                              int originalIndex = _todos.indexOf(task);
+                              _toggleTodoStatus(originalIndex);
                             },
                           ),
                           title: Text(
@@ -197,7 +223,6 @@ class _TodoHomePageState extends State<TodoHomePage> {
                               color: task.isDone ? Colors.grey : Colors.black,
                             ),
                           ),
-                          // Badge / Chip kecil untuk menampilkan tingkat prioritas di sisi kanan
                           subtitle: Row(
                             children: [
                               Container(
@@ -220,7 +245,7 @@ class _TodoHomePageState extends State<TodoHomePage> {
                           ),
                           trailing: IconButton(
                             icon: const Icon(Icons.delete, color: Colors.red),
-                            onPressed: () => _removeTodo(index),
+                            onPressed: () => _removeTodo(task),
                           ),
                         ),
                       );
@@ -229,6 +254,20 @@ class _TodoHomePageState extends State<TodoHomePage> {
           ),
         ],
       ),
+    );
+  }
+
+  // Widget pendukung untuk tombol filter
+  Widget _buildFilterButton(String filterName) {
+    bool isSelected = _currentFilter == filterName;
+    return ChoiceChip(
+      label: Text(filterName),
+      selected: isSelected,
+      onSelected: (bool selected) {
+        setState(() {
+          _currentFilter = filterName;
+        });
+      },
     );
   }
 
