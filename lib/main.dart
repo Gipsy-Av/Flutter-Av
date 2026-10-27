@@ -23,13 +23,13 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// Model kelas Task diperbarui dengan atribut dueDate (Tanggal Jatuh Tempo)
+// Model kelas Task lengkap
 class Task {
   String title;
   bool isDone;
   String priority;
   String category;
-  String dueDate; // Update V9: Tanggal jatuh tempo
+  String dueDate;
 
   Task({
     required this.title,
@@ -75,9 +75,7 @@ class _TodoHomePageState extends State<TodoHomePage> {
   String _selectedCategory = 'Pribadi';
   final List<String> _categories = ['Pribadi', 'Kuliah', 'Kerja', 'Belanja'];
 
-  // Variabel untuk tanggal jatuh tempo (Update V9)
   DateTime? _selectedDate;
-
   String _currentFilter = 'Semua';
 
   @override
@@ -102,7 +100,6 @@ class _TodoHomePageState extends State<TodoHomePage> {
     }
   }
 
-  // Fungsi memunculkan kalender pilihan tanggal (Update V9)
   Future<void> _pickDueDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
@@ -119,7 +116,6 @@ class _TodoHomePageState extends State<TodoHomePage> {
 
   void _addTodo() {
     if (_controller.text.isNotEmpty) {
-      // Format tanggal menjadi string (contoh: 15/11/2026)
       String formattedDate = _selectedDate != null
           ? "${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}"
           : "Tanpa Deadline";
@@ -134,7 +130,7 @@ class _TodoHomePageState extends State<TodoHomePage> {
         _controller.clear();
         _selectedPriority = 'Normal';
         _selectedCategory = 'Pribadi';
-        _selectedDate = null; // Reset tanggal
+        _selectedDate = null;
       });
       _saveTasks();
     }
@@ -164,6 +160,35 @@ class _TodoHomePageState extends State<TodoHomePage> {
               onPressed: () {
                 setState(() {
                   _todos.remove(task);
+                });
+                _saveTasks();
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Fitur Baru Tahap 10: Hapus semua tugas yang sudah selesai
+  void _clearCompletedTasks() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Bersihkan Tugas Selesai'),
+          content: const Text('Semua tugas yang sudah dicentang akan dihapus. Lanjutkan?'),
+          actions: [
+            TextButton(
+              child: const Text('Batal'),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            TextButton(
+              child: const Text('Bersihkan', style: TextStyle(color: Colors.red)),
+              onPressed: () {
+                setState(() {
+                  _todos.removeWhere((task) => task.isDone);
                 });
                 _saveTasks();
                 Navigator.of(context).pop();
@@ -219,9 +244,18 @@ class _TodoHomePageState extends State<TodoHomePage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Aplikasi Catatanku (Update V9)'),
+        title: const Text('Aplikasi Catatanku (Final V10)'),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
+        actions: [
+          // Tombol cepat bersihkan tugas selesai di AppBar (Update V10)
+          if (completedTask > 0)
+            IconButton(
+              icon: const Icon(Icons.cleaning_services),
+              tooltip: 'Hapus Tugas Selesai',
+              onPressed: _clearCompletedTasks,
+            ),
+        ],
       ),
       body: Column(
         children: [
@@ -239,7 +273,7 @@ class _TodoHomePageState extends State<TodoHomePage> {
             ),
           ),
 
-          // Form Input Lengkap (Update V9 dengan Tanggal)
+          // Form Input Lengkap
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
@@ -254,7 +288,6 @@ class _TodoHomePageState extends State<TodoHomePage> {
                 const SizedBox(height: 10),
                 Row(
                   children: [
-                    // Pilihan Prioritas
                     const Text('Prioritas:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                     const SizedBox(width: 4),
                     DropdownButton<String>(
@@ -274,7 +307,6 @@ class _TodoHomePageState extends State<TodoHomePage> {
                       },
                     ),
                     const SizedBox(width: 8),
-                    // Pilihan Kategori
                     const Text('Kat:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                     const SizedBox(width: 4),
                     DropdownButton<String>(
@@ -296,7 +328,6 @@ class _TodoHomePageState extends State<TodoHomePage> {
                   ],
                 ),
                 const SizedBox(height: 5),
-                // Tombol Pilih Tanggal & Tombol Tambah
                 Row(
                   children: [
                     OutlinedButton.icon(
@@ -400,7 +431,6 @@ class _TodoHomePageState extends State<TodoHomePage> {
                               color: task.isDone ? Colors.grey : Colors.black,
                             ),
                           ),
-                          // Subtitle menampilkan Kategori, Prioritas, & Tanggal Deadline (Update V9)
                           subtitle: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
