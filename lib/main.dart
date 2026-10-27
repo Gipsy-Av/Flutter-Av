@@ -37,7 +37,6 @@ class TodoHomePage extends StatefulWidget {
 }
 
 class _TodoHomePageState extends State<TodoHomePage> {
-  // Menggunakan List dari objek Task (bukan sekadar String lagi)
   final List<Task> _todos = [];
   final TextEditingController _controller = TextEditingController();
 
@@ -67,14 +66,33 @@ class _TodoHomePageState extends State<TodoHomePage> {
 
   @override
   Widget build(BuildContext context) {
+    // Menghitung jumlah tugas menggunakan fungsi filter Dart
+    int totalTask = _todos.length;
+    int completedTask = _todos.where((task) => task.isDone).length;
+    int pendingTask = totalTask - completedTask;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Aplikasi Catatanku (Update V2)'),
+        title: const Text('Aplikasi Catatanku (Update V3)'),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
       ),
       body: Column(
         children: [
+          // Widget Ringkasan Statistik Tugas (Update V3)
+          Container(
+            padding: const EdgeInsets.all(16.0),
+            color: Colors.blue.shade50,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildStatCard('Total', totalTask.toString(), Colors.blue),
+                _buildStatCard('Belum', pendingTask.toString(), Colors.orange),
+                _buildStatCard('Selesai', completedTask.toString(), Colors.green),
+              ],
+            ),
+          ),
+
           // Form Input Teks & Tombol
           Padding(
             padding: const EdgeInsets.all(16.0),
@@ -115,14 +133,12 @@ class _TodoHomePageState extends State<TodoHomePage> {
                         margin: const EdgeInsets.symmetric(
                             horizontal: 16, vertical: 4),
                         child: ListTile(
-                          // Checkbox di sebelah kiri
                           leading: Checkbox(
                             value: task.isDone,
                             onChanged: (bool? value) {
                               _toggleTodoStatus(index);
                             },
                           ),
-                          // Judul tugas dengan efek coret jika sudah selesai
                           title: Text(
                             task.title,
                             style: TextStyle(
@@ -132,7 +148,6 @@ class _TodoHomePageState extends State<TodoHomePage> {
                               color: task.isDone ? Colors.grey : Colors.black,
                             ),
                           ),
-                          // Tombol Hapus di sebelah kanan
                           trailing: IconButton(
                             icon: const Icon(Icons.delete, color: Colors.red),
                             onPressed: () => _removeTodo(index),
@@ -144,6 +159,27 @@ class _TodoHomePageState extends State<TodoHomePage> {
           ),
         ],
       ),
+    );
+  }
+
+  // Widget pendukung untuk mempercantik kartu statistik
+  Widget _buildStatCard(String label, String value, Color color) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 14, color: Colors.black54),
+        ),
+      ],
     );
   }
 }
