@@ -21,6 +21,14 @@ class MyApp extends StatelessWidget {
   }
 }
 
+// Model kelas untuk menyimpan data tugas beserta status selesai/belum
+class Task {
+  String title;
+  bool isDone;
+
+  Task({required this.title, this.isDone = false});
+}
+
 class TodoHomePage extends StatefulWidget {
   const TodoHomePage({super.key});
 
@@ -29,21 +37,28 @@ class TodoHomePage extends StatefulWidget {
 }
 
 class _TodoHomePageState extends State<TodoHomePage> {
-  // 1. Variabel penampung data (State)
-  final List<String> _todos = [];
+  // Menggunakan List dari objek Task (bukan sekadar String lagi)
+  final List<Task> _todos = [];
   final TextEditingController _controller = TextEditingController();
 
-  // 2. Fungsi Tambah Tugas
+  // Fungsi Tambah Tugas
   void _addTodo() {
     if (_controller.text.isNotEmpty) {
       setState(() {
-        _todos.add(_controller.text);
-        _controller.clear(); // Kosongkan inputan
+        _todos.add(Task(title: _controller.text));
+        _controller.clear();
       });
     }
   }
 
-  // 3. Fungsi Hapus Tugas
+  // Fungsi Ubah Status Selesai / Belum
+  void _toggleTodoStatus(int index) {
+    setState(() {
+      _todos[index].isDone = !_todos[index].isDone;
+    });
+  }
+
+  // Fungsi Hapus Tugas
   void _removeTodo(int index) {
     setState(() {
       _todos.removeAt(index);
@@ -54,7 +69,7 @@ class _TodoHomePageState extends State<TodoHomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Aplikasi Catatanku'),
+        title: const Text('Aplikasi Catatanku (Update V2)'),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
       ),
@@ -83,7 +98,7 @@ class _TodoHomePageState extends State<TodoHomePage> {
             ),
           ),
           
-          // Daftar Tugas
+          // Daftar Tugas dengan Checkbox
           Expanded(
             child: _todos.isEmpty
                 ? const Center(
@@ -95,11 +110,29 @@ class _TodoHomePageState extends State<TodoHomePage> {
                 : ListView.builder(
                     itemCount: _todos.length,
                     itemBuilder: (context, index) {
+                      final task = _todos[index];
                       return Card(
                         margin: const EdgeInsets.symmetric(
                             horizontal: 16, vertical: 4),
                         child: ListTile(
-                          title: Text(_todos[index]),
+                          // Checkbox di sebelah kiri
+                          leading: Checkbox(
+                            value: task.isDone,
+                            onChanged: (bool? value) {
+                              _toggleTodoStatus(index);
+                            },
+                          ),
+                          // Judul tugas dengan efek coret jika sudah selesai
+                          title: Text(
+                            task.title,
+                            style: TextStyle(
+                              decoration: task.isDone
+                                  ? TextDecoration.lineThrough
+                                  : TextDecoration.none,
+                              color: task.isDone ? Colors.grey : Colors.black,
+                            ),
+                          ),
+                          // Tombol Hapus di sebelah kanan
                           trailing: IconButton(
                             icon: const Icon(Icons.delete, color: Colors.red),
                             onPressed: () => _removeTodo(index),
